@@ -24,6 +24,21 @@ struct ContentView_Previews: PreviewProvider {
     }
 }*/
 import SwiftUIX
+import Firebase
+import Combine
+//import GoogleSignIn
+
+class FirebaseManager: NSObject {
+    static let shared = FirebaseManager()
+    
+    let auth: Auth
+    
+    override init() {
+        FirebaseApp.configure()
+        auth = Auth.auth()
+        super.init()
+    }
+}
 
 class LoginViewModel: ObservableObject {
     
@@ -34,6 +49,33 @@ class LoginViewModel: ObservableObject {
     // 2
     @Published var isPickingImage = false
     @Published var imageData: Data?
+    
+    @Published var errorMessage = ""
+    
+    func createAccountOrSignIn(success: @escaping () -> ()) {
+        if isLoginMode {
+          FirebaseManager.shared.auth.signIn(withEmail: email, password: password) { (res, err) in
+              if let err = err {
+                  print("Failed to login:", err)
+                  self.errorMessage = err.localizedDescription
+                  return
+              }
+              
+              self.errorMessage = "User signed in: \(res?.user.uid ?? "")"
+              success()
+          }
+      } else {
+          FirebaseManager.shared.auth.createUser(withEmail: email, password: password) { (res, err) in
+              if let err = err {
+                  print("Failed to create account:", err)
+                  self.errorMessage = err.localizedDescription
+                  return
+              }
+              
+              self.errorMessage = "User created: \(res?.user.uid ?? "")"
+          }
+      }
+    }
 }
 
 struct ContentView: View {
@@ -96,6 +138,10 @@ struct ContentView: View {
                     .background(Color.blue)
                     .cornerRadius(5)
                     .padding(.top)
+                    
+                    Text(vm.errorMessage)
+                        .foregroundColor(.red)
+                        .font(.system(size: 14))
                 }
                 .padding(.horizontal)
             }.background(Color(white: 0.92).ignoresSafeArea())
@@ -103,7 +149,5 @@ struct ContentView: View {
         }
     }
     
-    private func handleCreateAccount() {
-        
-    }
+    private func handleCreateAccount() {}
 }
